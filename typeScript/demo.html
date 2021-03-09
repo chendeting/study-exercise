@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <script>
+        // 对不同级别员工生成一个计算总工资的函数（绩效+基本工资）
+        function makeSalary(base) {
+            return function (performance) {
+                return base + performance
+            }
+        }
+        // 级别1(基本工资12000)员工的工资
+        let level1 = makeSalary(12000)
+        // 级别2(基本工资15000)员工的工资
+        let level2 = makeSalary(15000)
+        console.log('级别1(基本工资12000)员工的工资:', level1(6000))
+        console.log('级别2(基本工资15000)员工的工资:', level2(8000))
+    </script>
+</body>
+
+</html>
