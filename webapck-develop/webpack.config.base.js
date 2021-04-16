@@ -1,16 +1,18 @@
 // 运行在node环境下的js，需要遵循CommonJS规则
 const path = require('path')
-const {CleanWebpackPlugin} = require('clean-webpack-plugin') // 自动清除dist目录
+const { CleanWebpackPlugin } = require('clean-webpack-plugin') // 自动清除dist目录
 const HtmlWebpackPlugin = require('html-webpack-plugin') // 自动生成使用bundle.js的HTML
 const CopyWebpackPlugin = require('copy-webpack-plugin') // 把打包目录拷贝到输出目录
 /*
 * 把css样式从js文件中提取到单独的css文件中，把css拆分出来用外链的形式引入css文件，将所有的css样式合并为一个css文件。
 * 安装@next版本的extract-text-webpack-plugin，拆分为一一对应的多个css文件
 **/
-const MiniCssExtractPlugin = require('mini-css-extract-plugin') 
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const { compilation } = require('webpack')
 const { Compilation } = require('webpack')
 const webpack = require('webpack')
+
+const devMode = process.argv.indexOf('--mode=production') === -1;
 
 class MyPlugin { // 插件主要作用是去替换打包后的文件的js 代码前面的注释 ‘/******/ ’
     apply(compile) { // compile是webpack工作中最核心的对象，包含了此次构建的所有配置信息
@@ -37,10 +39,10 @@ class MyPlugin { // 插件主要作用是去替换打包后的文件的js 代码
 
 module.exports = {
     /*
-    *工作模式，简化了webpack的配置复杂程度，是针对不同开发环境的预设的配置
-    *默认是production（启用优化模式），
-    *development（启用开发模式，优化速度），
-    *none（启用原始模式，webpack 内部做不处理）
+    * 工作模式，简化了webpack的配置复杂程度，是针对不同开发环境的预设的配置
+    * 默认是production（启用优化模式），
+    * development（启用开发模式，优化速度），
+    * none（启用原始模式，webpack 内部做不处理）
     */
     mode: 'none', // 工作模式
     entry: './src/main.js', // 入口文件
@@ -63,7 +65,11 @@ module.exports = {
     devtool: 'cheap-module-eval-source-map',
     devServer: {
         // 指定额外的静态资源路径,可以是字符串，也可以是数组 
-        contentBase: './public' ,
+        // 当我们的devServer启动的时候, 首先加载contentPath下面的index.html
+        contentBase: './public',
+        // 加载index.html里的静态资源，由于设置了publicPath
+        // publicPath: '/build/', // 那么编译后的文件提供给外部的访问路径就是contentPath + publicPath,   http://localhost:8080/build/
+        // 当你在项目中用到了html-webpack-plugin的时候，请保证output和devServer的publicPath路径一致
         hot: true, // 开启热更新，还需要再入一个webpack内置的插件 HotModuleReplacementPlugin
         port: 5000,
         // 添加代理服务配置
@@ -71,7 +77,7 @@ module.exports = {
             '/api': {
                 // http://localhost:8080/api/users => https://api.github.com/api/users (但是此地址是没有api/，这就需要重写)
                 target: 'https://api.github.com',
-                 // http://localhost:8080/api/users => https://api.github.com/users 
+                // http://localhost:8080/api/users => https://api.github.com/users 
                 pathRewrite: {
                     '^/api': ''
                 },
@@ -80,42 +86,56 @@ module.exports = {
             }
         }
     },
+    resolve: {
+        // 当我们代码中出现 import 'vue'时， webpack会采用向上递归搜索的方式去node_modules 目录下找。为了减少搜索范围我们可以直接告诉webpack去哪个路径下查找。也就是别名(alias)的配置
+        alias: {
+            'vue$': 'vue/dist/vue.runtime.esm.js',
+            ' @': path.resolve(__dirname, '../src')
+        },
+        extensions: ['*', '.js', '.json', '.vue']
+    },
     module: {
         rules: [
             {
                 test: /.md$/,
                 use: [
-                    'html-loader', 
+                    'html-loader',
                     './markdown-loader'
                 ] // use可以使用模块名称，也可以使用模块路径，与reqiure函数是一样的,是从后到前执行
             },
             {
                 test: /\.js$/,
-                exclude: /node_modules/, // 除去node_modules下面的js，同上面的\转义字符
+                exclude: /node_modules/, // 除去node_modules下面的js，同上面的\转义字符, include exclude 同样配置include exclude也可以减少webpack loader的搜索转换时间。
                 use: {
                     loader: 'babel-loader', // 代替默认加载器，处理 ES6 新特性
                     options: {
                         // 将 @babel/preset-env 的 modules 属性设置为 false，确保不会转换 ES Modules，也就确保了 Tree-shaking 的前提。
-                         // babel插件集合,modules: 'commonjs'强制转换为commonJs，则打包是Tree-shaking就不生效了
-                         // 最新版本（8.x）的 babel-loader 中，已经自动帮我们关闭了对 ES Modules 转换的插件
+                        // babel插件集合,modules: 'commonjs'强制转换为commonJs，则打包是Tree-shaking就不生效了
+                        // 最新版本（8.x）的 babel-loader 中，已经自动帮我们关闭了对 ES Modules 转换的插件
                         //  presets: ['@babel/preset-env', { modules: 'commonjs' }]
-                         presets: ['@babel/preset-env']
+                        presets: ['@babel/preset-env']
                     }
                 }
             },
             {
                 test: /.css$/,
-                use: [MiniCssExtractPlugin.loader, 'style-loader', 'css-loader', 
-                {loader: 'postcss-loader', //  为css添加浏览器前缀
-                 options: {
-                   plugins: [require('autoprefixer')]
-                }}]
+                use: [MiniCssExtractPlugin.loader, 'style-loader', 'css-loader',
+                {
+                    loader: 'postcss-loader', //  为css添加浏览器前缀
+                    options: {
+                        plugins: [require('autoprefixer')]
+                    }
+                }]
             },
             {
                 test: /\.(png|jpe?g|gif)$/i,
                 use: {
                     loader: 'url-loader', // 小文件使用Data URLs，减少请求次数，大文件单独提取存放，提高加载速度
+                    include: path.join(__dirname, 'src/assets/icons'),
                     options: {
+                        name: 'img/[name].[hash:7].[ext]',
+                        // esModule:false 就是告诉它, 不要当esm模板, 即 commonjs 模块
+                        esModule: false, // 用CommonJs 处理图片会把图片转成Bases64格式，esModule 转成了 模块对象,更大一些的图片文件需要用file-loader 处理一下
                         limit: 10 * 1024, // 10kb,限制为10kb，超过10kb则使用file-loader处理
                         fallback: {
                             loader: 'file-loader',
@@ -133,9 +153,10 @@ module.exports = {
         new CleanWebpackPlugin(),
         // 拆分css
         new MiniCssExtractPlugin({
-            filename: '[name].[hash].csss',
-            chunkFilename: '[id].css'
+            filename: devMode ? '[name].css' : '[name].[hash].css',
+            chunkFilename: devMode ? '[id].css' : '[id].[hash].css'
         }),
+
         // 用于生成 index.html 文件
         new HtmlWebpackPlugin({ // 根据配置来生成html模版页面,输出自定义模版内容
             title: 'cdt Webpack Plugin Sample',
