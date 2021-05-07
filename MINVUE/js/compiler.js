@@ -48,15 +48,27 @@ class Compiler {
     update(node, key, attrName) {
         // 先获取处理函数
         let updateFn = this[attrName + 'Updater']
-        updateFn && updateFn(node, this.vm[key])
+        // 由于调用textUpdater方法this指向需要指向compiler，但是此处并没有使用this来调用，所以需要改变this的指向
+        // call 方法，第一个参数即为调用updateFn方法的指向对象，这里直接传入this就好
+        updateFn && updateFn.call(this, node, this.vm[key], key)
     }
     // 处理 v-text 指令,把对应的值取出来赋给对应的元素，传入node节点和v-text的数据msg的值value
-    textUpdater(node, value) {
+    textUpdater(node, value, key) {
         node.textContent = value
+        new Watcher(this.vm, key, (newValue) => {
+            node.textContent = newValue
+        })
     }
     // 处理 v-model 指令,是更新表单的值，传入node节点和v-text的数据msg的值value
-    modelUpdater(node, value) {
+    modelUpdater(node, value, key) {
         node.value = value
+        new Watcher(this.vm, key, (newValue) => {
+            node.value = newValue
+        })
+        // 双向绑定，其实就是给表单元素注册input事件，即给node注册input事件 
+        node.addEventListener('input', () => {
+            this.vm[key] = node.value
+        })
     }
 
     // 编译文本节点，处理差值表达值
@@ -72,6 +84,12 @@ class Compiler {
             let key = RegExp.$1.trim() // 去掉内容的空格，就得到了{{}}里面的变量名了
             // 把key替换成属性的值，然后再赋值给文本节点,要把差值表达式变换成变量对应的值，key为属性，那么值就是this.vm[key]
             node.textContent = value.replace(reg, this.vm[key])
+
+            // 创建watcher对象,当数据变化时更新视图
+            new Watcher(this.vm, key, (newValue) => {
+               // 重新赋值
+               node.textContent = newValue
+            })
         }
     }
 
