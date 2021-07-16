@@ -1,6 +1,6 @@
 const path = require('path')
 const webpackConfig = require('./webpack.config.js')
-const WebpackMerge = require('webpack-merge')
+const {WebpackMerge} = require('webpack-merge')
 const { CleanWebpackPlugin } = require('clean-webpack-plugin') // 自动清除dist目录
 const CopyWebpackPlugin = require('copy-webpack-plugin') // 把打包目录拷贝到输出目录
 const OptimizeCssAssetsPlugin = require('optimize-css-assets-webpack-plugin')
